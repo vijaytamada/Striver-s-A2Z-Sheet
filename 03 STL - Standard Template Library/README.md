@@ -34,15 +34,28 @@ vector<int> v = {1, 2, 3};
 vector<vector<int>> grid(n, vector<int>(m, 0));   // n×m matrix
 
 v.push_back(x);  v.pop_back();
+v.emplace_back(x);                   // constructs in-place, avoids a copy — prefer for objects/pairs
 v.size();  v.empty();  v.clear();
 v.front(); v.back();
+v[i];                                 // no bounds check (UB if out of range)
+v.at(i);                              // bounds-checked, throws std::out_of_range
 v.insert(v.begin()+i, x);
 v.erase(v.begin()+i);
 v.erase(v.begin()+l, v.begin()+r);   // range erase [l, r)
+v.resize(n);       v.resize(n, val); // grow/shrink, new elements default/val-init
+v.reserve(n);                        // pre-allocate capacity, avoids reallocation
+v.capacity();                        // current allocated capacity (>= size())
+v.shrink_to_fit();                   // request capacity == size()
+swap(v1, v2);                        // O(1) — swaps internal buffers
 
 // iterate
 for (int x : v) cout << x;
 for (int i = 0; i < v.size(); i++) ...;
+for (auto it = v.rbegin(); it != v.rend(); it++) ...;   // reverse iteration
+
+// 2D vector traversal
+for (auto& row : grid)
+    for (int x : row) ...;
 
 // useful
 reverse(v.begin(), v.end());
@@ -76,6 +89,22 @@ string t = to_string(42);
 // char checks
 isdigit(c); isalpha(c); isalnum(c); isupper(c); islower(c);
 tolower(c); toupper(c);
+
+// compare
+s.compare(t);                  // 0 if equal, <0 if s<t, >0 if s>t
+s == t;  s < t;                // lexicographic, usually clearer than compare()
+
+// split on whitespace with stringstream
+#include <sstream>
+stringstream ss("the quick fox");
+string word;
+vector<string> words;
+while (ss >> word) words.push_back(word);
+
+// split on a delimiter
+stringstream ss2("a,b,c");
+string token;
+while (getline(ss2, token, ',')) words.push_back(token);
 ```
 
 ---
@@ -85,21 +114,30 @@ tolower(c); toupper(c);
 ```cpp
 set<int> s;
 s.insert(x); s.erase(x); s.count(x);     // count returns 0/1
+s.emplace(x);                             // constructs in-place, avoids a copy
 auto it = s.find(x);                     // s.end() if not found
 
 // lower_bound / upper_bound (work in O(log n) for set/map)
 auto it = s.lower_bound(x);   // first >= x
 auto it = s.upper_bound(x);   // first > x
 
+// min / max element without extra search — set/map are sorted
+int mn = *s.begin();
+int mx = *s.rbegin();                     // reverse iterator, O(1)
+
 map<string,int> mp;
 mp["apple"] = 3;
 mp["apple"]++;                            // creates with 0 if absent then ++
+mp.emplace("banana", 2);                  // does NOT overwrite if key exists
 if (mp.count("apple")) ...;
 for (auto& [k, v] : mp) cout << k << v;   // C++17 structured binding
 mp.erase("apple");
 ```
 
 > ⚠ `unordered_map`/`unordered_set` do **NOT** have `lower_bound`/`upper_bound`.
+
+> ⚠ `multiset::erase(value)` removes **ALL** copies of `value` in O(log n + count).
+> To erase just one occurrence: `s.erase(s.find(value));`
 
 ---
 
@@ -343,6 +381,23 @@ v.erase(unique(v.begin(), v.end()), v.end());
 
 // gcd / lcm (C++17)
 __gcd(a, b);    gcd(a, b);   lcm(a, b);
+
+// predicate-based search
+auto it = find_if(v.begin(), v.end(), [](int x){ return x % 2 == 0; });
+int cnt = count_if(v.begin(), v.end(), [](int x){ return x > 0; });
+bool all = all_of(v.begin(), v.end(), [](int x){ return x > 0; });
+bool any = any_of(v.begin(), v.end(), [](int x){ return x < 0; });
+bool none = none_of(v.begin(), v.end(), [](int x){ return x < 0; });
+
+// transform — apply a function elementwise into another (or the same) container
+vector<int> sq(v.size());
+transform(v.begin(), v.end(), sq.begin(), [](int x){ return x * x; });
+
+// bit tricks (GCC builtins — very common in CP, undefined for x == 0 except popcount)
+__builtin_popcount(x);      // number of set bits (int)
+__builtin_popcountll(x);    // long long version
+__builtin_ctz(x);           // count trailing zeros
+__builtin_clz(x);           // count leading zeros
 ```
 
 ---
@@ -408,7 +463,32 @@ priority_queue<pair<int,int>, vector<pair<int,int>>, greater<>> pq;
 
 ---
 
-## 12. Last-Minute Gotchas
+## 12. `bitset<N>` — Fixed-Size Bit Array
+
+```cpp
+#include <bitset>
+bitset<32> b;                 // all zeros, size fixed at compile time
+bitset<32> b2(13);            // from integer: 00...01101
+bitset<8> b3("1010");         // from string, right-aligned: 00001010
+
+b[i] = 1;   b.set(i);         // set bit i
+b.reset(i);                   // clear bit i
+b.flip(i);                    // toggle bit i
+b.flip();                     // toggle all bits
+
+b.count();                    // number of set bits
+b.any();  b.none();  b.all(); // any set? none set? all set?
+b.to_string();                 // as a string
+b.to_ulong();  b.to_ullong();  // as an unsigned integer
+
+// supports bitwise ops
+bitset<8> a("1100"), c("1010");
+a & c;  a | c;  a ^ c;  ~a;  a << 1;  a >> 1;
+```
+
+---
+
+## 13. Last-Minute Gotchas
 
 - `priority_queue` comparator logic is **inverted** vs `sort` — if confused, write it out as "the one that returns true goes deeper / has lower priority."
 - `unordered_map` is faster average but worst-case O(n). For adversarial inputs use `map`.
